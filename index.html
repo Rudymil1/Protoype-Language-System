@@ -652,6 +652,109 @@
             transform: translateY(0);
         }
 
+        .voice-banner {
+            margin: 0 auto 16px;
+            max-width: 640px;
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: #f8fafc;
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-align: left;
+        }
+
+        .voice-banner.warning {
+            background: #fff7ed;
+            border-color: #fdba74;
+            color: #9a3412;
+        }
+
+        .voice-banner.error {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #991b1b;
+        }
+
+        .voice-fallback {
+            margin-top: 18px;
+            text-align: left;
+            max-width: 640px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .voice-fallback label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+        }
+
+        .voice-fallback textarea {
+            width: 100%;
+            min-height: 72px;
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        .voice-fallback-actions {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .text-run-btn {
+            border: none;
+            background: var(--accent);
+            color: #fff;
+            font-weight: 600;
+            padding: 10px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+        }
+
+        .text-run-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .speech-debug {
+            margin-top: 20px;
+            text-align: left;
+            max-width: 640px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .speech-debug summary {
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .speech-debug pre {
+            margin-top: 8px;
+            padding: 10px 12px;
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: var(--radius-sm);
+            font-size: 11px;
+            line-height: 1.4;
+            max-height: 220px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
         /* Responsive */
         @media (max-width: 600px) {
             body {
@@ -777,10 +880,23 @@
 
         <!-- Voice Control -->
         <div class="voice-control section-anchor-offset reveal" id="services">
+            <div class="voice-banner" id="voiceEnvBanner" hidden></div>
             <button class="mic-button" id="micButton">🎤</button>
             <p class="voice-instruction" data-translate="speakNow">Tap to speak in your language</p>
             <p class="voice-hint" data-translate="voiceHint">Try: "Show drinks" or "Order chicken"</p>
-            <div class="transcript" id="transcript" data-translate="listening">Waiting for speech...</div>
+            <div class="transcript" id="transcript">Waiting for speech...</div>
+            <div class="voice-fallback" id="voiceFallback">
+                <label for="textCommand">Type a command if voice is blocked or unavailable</label>
+                <textarea id="textCommand" placeholder="Example: Show drinks / Ipakita ang inumin / 飲み物を見せて"></textarea>
+                <div class="voice-fallback-actions">
+                    <button type="button" class="text-run-btn" id="runTextCommand">Run command</button>
+                    <span style="font-size: 12px; color: var(--text-secondary);" id="voiceStatusHint"></span>
+                </div>
+            </div>
+            <details class="speech-debug" id="speechDebug">
+                <summary>Speech debug log</summary>
+                <pre id="speechDebugLog"></pre>
+            </details>
         </div>
 
         <!-- Food Menu -->
@@ -930,7 +1046,7 @@
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
-    <script>
+    <script type="module">
         // Translations
         const translations = {
             en: {
@@ -1068,81 +1184,140 @@
         let orderItems = [];
         let recognition = null;
         let isListening = false;
+        let micPermissionGranted = false;
+        let speechApiAvailable = false;
+
+        const voiceEnvBanner = document.getElementById('voiceEnvBanner');
+        const voiceStatusHint = document.getElementById('voiceStatusHint');
+        const speechDebugLogEl = document.getElementById('speechDebugLog');
+        const micButtonEl = document.getElementById('micButton');
+
+        const MAX_DEBUG_LINES = 40;
+
+        let francAll = null;
+
+        async function loadFranc() {
+            if (francAll) return true;
+            try {
+                const mod = await import('https://esm.sh/franc-min@6.2.0/es2022/franc-min.bundle.mjs');
+                francAll = mod.francAll;
+                speechDebug('franc:loaded');
+                return true;
+            } catch (e) {
+                speechDebug('franc:load-failed', { message: e.message });
+                return false;
+            }
+        }
+
+        function speechDebug(line, data = null) {
+            const ts = new Date().toISOString();
+            const suffix = data !== null ? ` ${JSON.stringify(data)}` : '';
+            const row = `[${ts}] ${line}${suffix}`;
+            console.log(row);
+            if (!speechDebugLogEl) return;
+            const prev = speechDebugLogEl.textContent.trim();
+            const next = prev ? `${prev}\n${row}` : row;
+            const lines = next.split('\n');
+            speechDebugLogEl.textContent = lines.slice(-MAX_DEBUG_LINES).join('\n');
+        }
+
+        function showVoiceBanner(message, type = 'info') {
+            if (!voiceEnvBanner) return;
+            voiceEnvBanner.hidden = false;
+            voiceEnvBanner.textContent = message;
+            voiceEnvBanner.classList.remove('warning', 'error');
+            if (type === 'warning') voiceEnvBanner.classList.add('warning');
+            if (type === 'error') voiceEnvBanner.classList.add('error');
+        }
+
+        function clearVoiceBanner() {
+            if (!voiceEnvBanner) return;
+            voiceEnvBanner.hidden = true;
+            voiceEnvBanner.textContent = '';
+            voiceEnvBanner.classList.remove('warning', 'error');
+        }
+
+        function setVoiceStatusHint(text) {
+            if (voiceStatusHint) voiceStatusHint.textContent = text || '';
+        }
+
+        function isSpeechRecognitionSupported() {
+            return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+        }
+
+        function refreshSecureContextUi() {
+            const secure = window.isSecureContext === true;
+            const isLocalhost = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+            const isFile = location.protocol === 'file:';
+
+            if (!secure && !isLocalhost && location.protocol !== 'https:') {
+                showVoiceBanner(
+                    'Voice works best on HTTPS or localhost. Open this page over https:// or http://localhost (Chrome), or use “Type a command” below.',
+                    'warning'
+                );
+                speechDebug('context:not-secure', { href: location.href, isSecureContext: window.isSecureContext });
+                return;
+            }
+
+            if (isFile) {
+                showVoiceBanner(
+                    'You opened this as a local file. For reliable speech recognition, serve the folder with a local server (localhost) or deploy over HTTPS.',
+                    'warning'
+                );
+                speechDebug('context:file-protocol', { href: location.href });
+                return;
+            }
+
+            clearVoiceBanner();
+            speechDebug('context:ok', { href: location.href, isSecureContext: window.isSecureContext, isLocalhost });
+        }
+
+        async function ensureMicrophonePermission() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                micPermissionGranted = true;
+                return true;
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                micPermissionGranted = true;
+                stream.getTracks().forEach((t) => t.stop());
+                speechDebug('mic:permission-granted');
+                return true;
+            } catch (err) {
+                micPermissionGranted = false;
+                speechDebug('mic:permission-denied', { name: err.name, message: err.message });
+                showVoiceBanner(
+                    'Microphone permission was blocked. Allow microphone access in your browser settings, or use “Type a command” below.',
+                    'error'
+                );
+                return false;
+            }
+        }
 
         function setRecognitionLanguage(lang) {
             if (!recognition) return;
             recognition.lang = speechLocales[lang] || speechLocales.en;
+            speechDebug('speech:recognition-lang-set', { lang, locale: recognition.lang });
         }
 
-        // Initialize Speech Recognition
-        function initSpeechRecognition() {
-            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                recognition = new SpeechRecognition();
-                recognition.continuous = false;
-                recognition.interimResults = true;
-                recognition.maxAlternatives = 3;
-                setRecognitionLanguage(currentLanguage);
-
-                recognition.onstart = () => {
-                    isListening = true;
-                    document.getElementById('micButton').classList.add('listening');
-                    document.getElementById('transcript').textContent = `🎤 Listening (${translations[currentLanguage].languageName})...`;
-                };
-
-                recognition.onend = () => {
-                    isListening = false;
-                    document.getElementById('micButton').classList.remove('listening');
-                };
-
-                recognition.onresult = (event) => {
-                    const transcript = Array.from(event.results)
-                        .map(result => result[0].transcript)
-                        .join(' ')
-                        .trim();
-                    
-                    document.getElementById('transcript').textContent = transcript;
-
-                    const hasFinalResult = Array.from(event.results).some(result => result.isFinal);
-                    if (hasFinalResult) {
-                        detectLanguageAndProcess(transcript);
-                    }
-                };
-
-                recognition.onerror = (event) => {
-                    console.error('Speech recognition error:', event.error);
-                    document.getElementById('transcript').textContent = 'Error: ' + event.error;
-                    isListening = false;
-                    document.getElementById('micButton').classList.remove('listening');
-                };
-            } else {
-                document.getElementById('transcript').textContent = 'Speech recognition not supported';
-                document.getElementById('micButton').disabled = true;
-            }
+        function mapFrancToApp(code3) {
+            if (code3 === 'jpn') return 'ja';
+            if (code3 === 'fil' || code3 === 'tgl' || code3 === 'ceb') return 'fil';
+            if (code3 === 'eng') return 'en';
+            return null;
         }
 
-        // Detect language from text
-        function detectLanguageAndProcess(text) {
+        const indicatorWords = {
+            en: ['show', 'order', 'drinks', 'desserts', 'food', 'menu', 'chicken', 'burger', 'coffee'],
+            fil: ['pakita', 'ipakita', 'inumin', 'pagkain', 'panghimagas', 'manok', 'kape', 'gusto', 'paki', 'po'],
+            ja: ['飲み物', 'デザート', '料理', '注文', 'チキン', 'コーヒー']
+        };
+
+        function heuristicLanguageScores(text) {
             const lowerText = text.toLowerCase();
             const normalizedText = lowerText.replace(/[^\p{L}\p{N}\s]/gu, ' ');
             const words = normalizedText.split(/\s+/).filter(Boolean);
-            
-            // Japanese detection (contains Japanese characters)
-            const japaneseRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/;
-            if (japaneseRegex.test(text)) {
-                switchLanguage('ja');
-                setRecognitionLanguage('ja');
-                processVoiceCommand(text, 'ja');
-                return;
-            }
-
-            const indicatorWords = {
-                en: ['show', 'order', 'drinks', 'desserts', 'food', 'menu', 'chicken', 'burger', 'coffee'],
-                fil: ['pakita', 'ipakita', 'inumin', 'pagkain', 'panghimagas', 'manok', 'kape', 'gusto', 'paki', 'po'],
-                ja: ['飲み物', 'デザート', '料理', '注文', 'チキン', 'コーヒー']
-            };
-
-            const scoreLanguage = (lang) => {
+            const scoreLang = (lang) => {
                 const indicators = indicatorWords[lang] || [];
                 return indicators.reduce((score, token) => {
                     if (normalizedText.includes(token)) return score + 2;
@@ -1150,35 +1325,242 @@
                     return score;
                 }, 0);
             };
+            return {
+                scores: { en: scoreLang('en'), fil: scoreLang('fil'), ja: scoreLang('ja') },
+                normalizedText,
+                words
+            };
+        }
 
-            const scored = ['en', 'fil', 'ja']
-                .map((lang) => ({ lang, score: scoreLanguage(lang) }))
-                .sort((a, b) => b.score - a.score);
+        function detectLanguageFromTranscript(text) {
+            const trimmed = text.trim();
+            const japaneseRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/;
+            if (japaneseRegex.test(trimmed)) {
+                return { lang: 'ja', francCode: null, francScore: null, method: 'script-japanese' };
+            }
 
-            let detectedLang = scored[0].score > 0 ? scored[0].lang : currentLanguage;
-            switchLanguage(detectedLang);
-            setRecognitionLanguage(detectedLang);
+            const { scores: heuristicScores, normalizedText, words } = heuristicLanguageScores(trimmed);
+            let francCode = null;
+            let francScore = null;
+            try {
+                if (francAll) {
+                    const ranked = francAll(trimmed, { minLength: 1 });
+                    if (ranked.length) {
+                        francCode = ranked[0][0];
+                        francScore = ranked[0][1];
+                    }
+                }
+            } catch (e) {
+                speechDebug('franc:error', { message: e.message });
+            }
 
-            let handled = processVoiceCommand(text, detectedLang);
+            const mapped = francCode ? mapFrancToApp(francCode) : null;
+            const topHeuristic = ['en', 'fil', 'ja'].sort((a, b) => heuristicScores[b] - heuristicScores[a])[0];
+            const bestHeuristicScore = heuristicScores[topHeuristic];
 
-            // Fallback: try other language command maps if primary language didn't match.
+            let lang = 'en';
+            let method = 'default-en';
+
+            if (mapped) {
+                lang = mapped;
+                method = 'franc';
+            } else if (francCode === 'und' || francCode === null) {
+                if (bestHeuristicScore > 0) {
+                    lang = topHeuristic;
+                    method = 'heuristic';
+                } else {
+                    lang = currentLanguage;
+                    method = 'fallback-current-ui-language';
+                }
+            } else {
+                if (bestHeuristicScore >= 2) {
+                    lang = topHeuristic;
+                    method = 'heuristic-over-franc';
+                } else {
+                    lang = 'en';
+                    method = 'franc-unknown-mapped-to-en';
+                }
+            }
+
+            return { lang, francCode, francScore, method, heuristicScores, normalizedText, words };
+        }
+
+        function applyMenuLanguage(lang, source) {
+            const prev = currentLanguage;
+            currentLanguage = lang;
+            setRecognitionLanguage(lang);
+
+            document.getElementById('currentFlag').textContent = flags[lang];
+            document.getElementById('languageName').textContent = translations[lang].languageName;
+
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+
+            const elements = document.querySelectorAll('[data-translate]');
+            elements.forEach(el => el.classList.add('fade-out'));
+
+            setTimeout(() => {
+                elements.forEach(el => {
+                    const key = el.dataset.translate;
+                    if (translations[lang][key]) {
+                        el.textContent = translations[lang][key];
+                    }
+                    el.classList.remove('fade-out');
+                    el.classList.add('fade-in');
+                });
+            }, 150);
+
+            speechDebug('menu:language-applied', { source, previous: prev, applied: lang });
+        }
+
+        // Initialize Speech Recognition (Web Speech API — browser dependent)
+        function initSpeechRecognition() {
+            refreshSecureContextUi();
+
+            if (!isSpeechRecognitionSupported()) {
+                speechApiAvailable = false;
+                document.getElementById('transcript').textContent = 'Speech recognition not supported in this browser. Use Chrome/Edge, HTTPS or localhost, or type a command below.';
+                micButtonEl.disabled = true;
+                setVoiceStatusHint('Voice unavailable — use text command or manual language buttons.');
+                speechDebug('speech:not-supported');
+                return;
+            }
+
+            speechApiAvailable = true;
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 3;
+            setRecognitionLanguage(currentLanguage);
+
+            recognition.onstart = () => {
+                isListening = true;
+                micButtonEl.classList.add('listening');
+                document.getElementById('transcript').textContent = `🎤 Listening (speech locale: ${recognition.lang})...`;
+                speechDebug('speech:started', { recognitionLang: recognition.lang });
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                micButtonEl.classList.remove('listening');
+                speechDebug('speech:ended');
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = Array.from(event.results)
+                    .map(result => result[0].transcript)
+                    .join(' ')
+                    .trim();
+
+                document.getElementById('transcript').textContent = transcript;
+
+                const finalized = Array.from(event.results).filter((r) => r.isFinal);
+                if (finalized.length) {
+                    speechDebug('speech:transcript-final', { transcript, recognitionLang: recognition.lang });
+                    void detectLanguageAndProcess(transcript, 'voice');
+                } else {
+                    speechDebug('speech:transcript-interim', { transcript, recognitionLang: recognition.lang });
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                isListening = false;
+                micButtonEl.classList.remove('listening');
+
+                const messages = {
+                    'not-allowed': 'Microphone blocked or not allowed. Check site permissions (lock icon → allow mic).',
+                    'service-not-allowed': 'Speech service blocked or disallowed. Use HTTPS or localhost in Chrome/Edge, allow microphone, and try again. If it persists, your network or region may block the speech service — use “Type a command” below.',
+                    'network': 'Speech recognition network error. Check your connection and try again.',
+                    'no-speech': 'No speech detected. Try again closer to the mic.',
+                    'audio-capture': 'No microphone found or capture failed.',
+                    'aborted': 'Speech recognition aborted.'
+                };
+
+                const msg = messages[event.error] || `Speech error: ${event.error}`;
+                document.getElementById('transcript').textContent = msg;
+                showVoiceBanner(msg, event.error === 'service-not-allowed' || event.error === 'not-allowed' ? 'error' : 'warning');
+                setVoiceStatusHint('Voice failed — use text command or manual language buttons.');
+                speechDebug('speech:error', { error: event.error, message: msg, recognitionLang: recognition?.lang });
+            };
+        }
+
+        async function detectLanguageAndProcess(text, source = 'text') {
+            const trimmed = text.trim();
+            if (!trimmed) {
+                speechDebug('detect:empty-transcript', { source });
+                return;
+            }
+
+            await loadFranc();
+
+            const detection = detectLanguageFromTranscript(trimmed);
+            speechDebug('detect:language', {
+                source,
+                transcript: trimmed,
+                detected: detection.lang,
+                francCode: detection.francCode,
+                francScore: detection.francScore,
+                method: detection.method
+            });
+
+            applyMenuLanguage(detection.lang, `${source}:${detection.method}`);
+
+            let handled = processVoiceCommand(trimmed, detection.lang);
+
             if (!handled) {
                 for (const lang of ['en', 'fil', 'ja']) {
-                    if (lang === detectedLang) continue;
-                    if (processVoiceCommand(text, lang)) {
-                        detectedLang = lang;
-                        switchLanguage(detectedLang);
-                        setRecognitionLanguage(detectedLang);
+                    if (lang === detection.lang) continue;
+                    if (processVoiceCommand(trimmed, lang)) {
+                        applyMenuLanguage(lang, `${source}:command-fallback-${lang}`);
                         handled = true;
+                        speechDebug('detect:command-matched-after-fallback', { lang });
                         break;
                     }
                 }
+            }
+
+            speechDebug('detect:command-result', { handled, menuLanguage: currentLanguage });
+        }
+
+        async function toggleListening() {
+            if (!speechApiAvailable || !recognition) {
+                setVoiceStatusHint('Voice not available — use text command.');
+                return;
+            }
+
+            if (isListening) {
+                recognition.stop();
+                return;
+            }
+
+            refreshSecureContextUi();
+            const okMic = await ensureMicrophonePermission();
+            if (!okMic) {
+                setVoiceStatusHint('Mic blocked — use text command.');
+                return;
+            }
+
+            setRecognitionLanguage(currentLanguage);
+            try {
+                recognition.start();
+            } catch (e) {
+                speechDebug('speech:start-failed', { message: e.message });
+                showVoiceBanner('Could not start speech recognition. Use “Type a command” below.', 'error');
             }
         }
 
         // Process voice commands
         function processVoiceCommand(text, lang) {
             const lowerText = text.toLowerCase();
+            const haystackFor = (cmd) => {
+                if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(cmd)) {
+                    return text;
+                }
+                return lowerText;
+            };
 
             // Command patterns for each language
             const commands = {
@@ -1232,17 +1614,17 @@
             const langCommands = commands[lang] || commands.en;
 
             // Check for section commands
-            if (langCommands.drinks.some(cmd => lowerText.includes(cmd))) {
+            if (langCommands.drinks.some(cmd => haystackFor(cmd).includes(cmd))) {
                 scrollToSection('drinksSection');
                 showToast(translations[currentLanguage].showingDrinks);
                 return true;
             }
-            if (langCommands.food.some(cmd => lowerText.includes(cmd))) {
+            if (langCommands.food.some(cmd => haystackFor(cmd).includes(cmd))) {
                 scrollToSection('foodSection');
                 showToast(translations[currentLanguage].showingFood);
                 return true;
             }
-            if (langCommands.desserts.some(cmd => lowerText.includes(cmd))) {
+            if (langCommands.desserts.some(cmd => haystackFor(cmd).includes(cmd))) {
                 scrollToSection('dessertsSection');
                 showToast(translations[currentLanguage].showingDesserts);
                 return true;
@@ -1263,7 +1645,7 @@
             };
 
             for (const [item, data] of Object.entries(itemMap)) {
-                if (langCommands[item] && langCommands[item].some(cmd => lowerText.includes(cmd))) {
+                if (langCommands[item] && langCommands[item].some(cmd => haystackFor(cmd).includes(cmd))) {
                     addToOrder(data.price);
                     highlightItem(data.element);
                     return true;
@@ -1271,40 +1653,6 @@
             }
 
             return false;
-        }
-
-        // Switch language
-        function switchLanguage(lang) {
-            if (currentLanguage === lang) return;
-
-            currentLanguage = lang;
-            setRecognitionLanguage(lang);
-
-            // Update flag and language name
-            document.getElementById('currentFlag').textContent = flags[lang];
-            document.getElementById('languageName').textContent = translations[lang].languageName;
-
-            // Update active button
-            document.querySelectorAll('.lang-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.lang === lang);
-            });
-
-            // Animate text changes
-            const elements = document.querySelectorAll('[data-translate]');
-            elements.forEach(el => {
-                el.classList.add('fade-out');
-            });
-
-            setTimeout(() => {
-                elements.forEach(el => {
-                    const key = el.dataset.translate;
-                    if (translations[lang][key]) {
-                        el.textContent = translations[lang][key];
-                    }
-                    el.classList.remove('fade-out');
-                    el.classList.add('fade-in');
-                });
-            }, 150);
         }
 
         // Scroll to section
@@ -1363,21 +1711,21 @@
         }
 
         // Event Listeners
-        document.getElementById('micButton').addEventListener('click', () => {
-            if (recognition) {
-                if (isListening) {
-                    recognition.stop();
-                } else {
-                    setRecognitionLanguage(currentLanguage);
-                    recognition.start();
-                }
-            }
+        micButtonEl.addEventListener('click', () => {
+            toggleListening();
+        });
+
+        document.getElementById('runTextCommand').addEventListener('click', () => {
+            const raw = document.getElementById('textCommand').value || '';
+            speechDebug('text-command:submitted', { text: raw });
+            void detectLanguageAndProcess(raw, 'text-fallback');
         });
 
         // Language selector buttons
         document.querySelectorAll('.lang-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                switchLanguage(btn.dataset.lang);
+                applyMenuLanguage(btn.dataset.lang, 'manual-button');
+                speechDebug('manual:language-selected', { lang: btn.dataset.lang });
             });
         });
 
