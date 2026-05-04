@@ -755,6 +755,100 @@
             word-break: break-word;
         }
 
+        /* Smart menu — user instructions */
+        .smart-menu-guide {
+            margin: 0 0 20px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: linear-gradient(165deg, #ffffff 0%, #f4f8ef 100%);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .smart-menu-guide__inner {
+            padding: 22px 24px 20px;
+        }
+
+        .smart-menu-guide__title {
+            font-size: 1.28rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0 0 14px;
+            letter-spacing: -0.02em;
+            line-height: 1.25;
+        }
+
+        .smart-menu-guide__list {
+            margin: 0;
+            padding-left: 1.35rem;
+            color: var(--text-secondary);
+            font-size: 15px;
+            line-height: 1.55;
+        }
+
+        .smart-menu-guide__list li {
+            margin-bottom: 10px;
+            padding-left: 4px;
+        }
+
+        .smart-menu-guide__list li:last-child {
+            margin-bottom: 0;
+        }
+
+        .smart-menu-guide__footer {
+            margin-top: 18px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .smart-menu-guide__btn {
+            border: none;
+            background: var(--accent);
+            color: #fff;
+            font-weight: 600;
+            padding: 10px 22px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s ease, transform 0.15s ease;
+        }
+
+        .smart-menu-guide__btn:hover {
+            background: var(--success);
+        }
+
+        .smart-menu-guide__btn:active {
+            transform: scale(0.98);
+        }
+
+        .instruction-show-again {
+            display: inline-flex;
+            align-items: center;
+            margin: 0 0 16px;
+            padding: 0;
+            border: none;
+            background: none;
+            color: var(--accent);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        .instruction-show-again:hover {
+            color: var(--success);
+        }
+
+        .instruction-show-again:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
         /* Responsive */
         @media (max-width: 600px) {
             body {
@@ -810,6 +904,18 @@
                 flex-direction: column;
                 align-items: flex-start;
             }
+
+            .smart-menu-guide__inner {
+                padding: 18px 16px 16px;
+            }
+
+            .smart-menu-guide__title {
+                font-size: 1.12rem;
+            }
+
+            .smart-menu-guide__list {
+                font-size: 14px;
+            }
         }
     </style>
 </head>
@@ -829,6 +935,24 @@
                 </div>
             </div>
         </nav>
+
+        <section class="smart-menu-guide" id="smartMenuGuide" aria-labelledby="smartMenuGuideTitle">
+            <div class="smart-menu-guide__inner">
+                <h2 class="smart-menu-guide__title" id="smartMenuGuideTitle">How to Use the Smart Menu</h2>
+                <ol class="smart-menu-guide__list">
+                    <li>Tap the microphone button to start</li>
+                    <li>Allow microphone access when prompted</li>
+                    <li>Speak naturally in your preferred language (e.g., “Hello”, “Magandang gabi”, “Konnichiwa”)</li>
+                    <li>Wait for the system to detect your language and switch the menu automatically</li>
+                    <li>Browse the menu or use voice commands to order</li>
+                    <li>If it doesn’t work, use the manual language buttons below</li>
+                </ol>
+                <div class="smart-menu-guide__footer">
+                    <button type="button" class="smart-menu-guide__btn" id="smartMenuGuideDismiss">Got it</button>
+                </div>
+            </div>
+        </section>
+        <button type="button" class="instruction-show-again" id="smartMenuGuideShowAgain" hidden>Show instructions again</button>
 
         <!-- Header -->
         <header class="header section-anchor-offset" id="home">
@@ -1809,6 +1933,42 @@
         // Initialize
         initSpeechRecognition();
         startSlider();
+    </script>
+    <script>
+        (function () {
+            var STORAGE_KEY = 'smartMenuInstructionsDismissed';
+            var panel = document.getElementById('smartMenuGuide');
+            var dismissBtn = document.getElementById('smartMenuGuideDismiss');
+            var showAgainBtn = document.getElementById('smartMenuGuideShowAgain');
+            if (!panel || !dismissBtn) return;
+
+            function applyState() {
+                var dismissed = localStorage.getItem(STORAGE_KEY) === '1';
+                panel.hidden = dismissed;
+                panel.setAttribute('aria-hidden', dismissed ? 'true' : 'false');
+                if (showAgainBtn) {
+                    showAgainBtn.hidden = !dismissed;
+                }
+            }
+
+            applyState();
+
+            dismissBtn.addEventListener('click', function () {
+                localStorage.setItem(STORAGE_KEY, '1');
+                applyState();
+            });
+
+            if (showAgainBtn) {
+                showAgainBtn.addEventListener('click', function () {
+                    localStorage.removeItem(STORAGE_KEY);
+                    applyState();
+                    try {
+                        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } catch (e) { /* ignore */ }
+                    dismissBtn.focus();
+                });
+            }
+        })();
     </script>
 </body>
 </html>
