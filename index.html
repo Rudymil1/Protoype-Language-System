@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Restaurant Menu</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #f5f5f7;
+            --bg-card: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+            --accent: #007aff;
+            --accent-light: #e3f2fd;
+            --success: #34c759;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.12);
+            --radius: 16px;
+            --radius-sm: 12px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+
+        .restaurant-name {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .tagline {
+            color: var(--text-secondary);
+            font-size: 15px;
+        }
+
+        /* Language Display */
+        .language-status {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .current-language {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .current-language .flag {
+            font-size: 32px;
+        }
+
+        .language-info h3 {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .language-info p {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .language-selector {
+            display: flex;
+            gap: 8px;
+        }
+
+        .lang-btn {
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: var(--bg-primary);
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lang-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .lang-btn.active {
+            background: var(--accent-light);
+            box-shadow: 0 0 0 2px var(--accent);
+        }
+
+        /* Voice Control */
+        .voice-control {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 24px;
+            color: white;
+            text-align: center;
+        }
+
+        .mic-button {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 32px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 16px;
+            position: relative;
+        }
+
+        .mic-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .mic-button.listening {
+            animation: pulse 1.5s infinite;
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 20px rgba(255, 255, 255, 0);
+            }
+        }
+
+        .voice-instruction {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .voice-hint {
+            font-size: 13px;
+            opacity: 0.7;
+        }
+
+        .transcript {
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Menu Categories */
+        .menu-section {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .section-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-header .icon {
+            font-size: 24px;
+        }
+
+        .section-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* Menu Items */
+        .menu-items {
+            padding: 8px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            gap: 16px;
+        }
+
+        .menu-item:hover {
+            background: var(--bg-primary);
+        }
+
+        .menu-item.highlighted {
+            background: var(--accent-light);
+            box-shadow: inset 0 0 0 2px var(--accent);
+        }
+
+        .item-emoji {
+            font-size: 40px;
+            flex-shrink: 0;
+        }
+
+        .item-details {
+            flex: 1;
+        }
+
+        .item-name {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            transition: opacity 0.3s ease;
+        }
+
+        .item-description {
+            font-size: 14px;
+            color: var(--text-secondary);
+            transition: opacity 0.3s ease;
+        }
+
+        .item-price {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* Add to Order Button */
+        .add-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: var(--accent);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .add-btn:hover {
+            transform: scale(1.1);
+            background: #0056b3;
+        }
+
+        /* Order Summary */
+        .order-summary {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px 24px;
+            position: sticky;
+            bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .order-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .order-count {
+            background: var(--accent);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .order-btn {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: var(--radius-sm);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .order-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 199, 89, 0.4);
+        }
+
+        /* Fade animation for text changes */
+        .fade-out {
+            opacity: 0;
+        }
+
+        .fade-in {
+            opacity: 1;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--text-primary);
+            color: white;
+            padding: 14px 24px;
+            border-radius: var(--radius-sm);
+            font-size: 15px;
+            font-weight: 500;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            body {
+                padding: 12px;
+            }
+
+            .header {
+                padding: 24px 16px;
+            }
+
+            .restaurant-name {
+                font-size: 24px;
+            }
+
+            .language-status {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .menu-item {
+                padding: 12px;
+            }
+
+            .item-emoji {
+                font-size: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="restaurant-name" data-translate="restaurantName">Sakura Bistro</h1>
+            <p class="tagline" data-translate="tagline">Smart Dining Experience</p>
+        </header>
+
+        <!-- Language Status -->
+        <div class="language-status">
+            <div class="current-language">
+                <span class="flag" id="currentFlag">🇺🇸</span>
+                <div class="language-info">
+                    <h3 data-translate="detectedLanguage">Detected Language</h3>
+                    <p id="languageName">English</p>
+                </div>
+            </div>
+            <div class="language-selector">
+                <button class="lang-btn active" data-lang="en" title="English">🇺🇸</button>
+                <button class="lang-btn" data-lang="fil" title="Filipino">🇵🇭</button>
+                <button class="lang-btn" data-lang="ja" title="Japanese">🇯🇵</button>
+            </div>
+        </div>
+
+        <!-- Voice Control -->
+        <div class="voice-control">
+            <button class="mic-button" id="micButton">🎤</button>
+            <p class="voice-instruction" data-translate="speakNow">Tap to speak in your language</p>
+            <p class="voice-hint" data-translate="voiceHint">Try: "Show drinks" or "Order chicken"</p>
+            <div class="transcript" id="transcript" data-translate="listening">Waiting for speech...</div>
+        </div>
+
+        <!-- Food Menu -->
+        <section class="menu-section" id="foodSection">
+            <div class="section-header">
+                <span class="icon">🍽️</span>
+                <h2 data-translate="mainDishes">Main Dishes</h2>
+            </div>
+            <div class="menu-items">
+                <div class="menu-item" data-item="chicken">
+                    <span class="item-emoji">🍗</span>
+                    <div class="item-details">
+                        <p class="item-name" data-translate="friedChicken">Crispy Fried Chicken</p>
+                        <p class="item-description" data-translate="friedChickenDesc">Golden crispy chicken with special herbs</p>
+                    </div>
+                    <span class="item-price">$12.99</span>
+                    <button class="add-btn">+</button>
+                </div>
+                <div class="menu-item" data-item="burger">
+                    <span class="item-emoji">🍔</span>
+                    <div class="item-details">
+                        <p class="item-name" data-translate="burger">Classic Beef Burger</p>
+                        <p class="item-description" data-translate="burgerDesc">Juicy beef patty with fresh vegetables</p>
+                    </div>
+                    <span class="item-price">$14.99</span>
+                    <button class="add-btn">+</button>
+                </div>
+                <div class="menu-item" data-item="pasta">
+                    <span class="item-emoji">🍝</span>
+                    <div class="item-details">
+                        <p class="item-name" data-translate="pasta">Creamy Carbonara Pasta</p>
+                        <p class="item-description" data-translate="pastaDesc">Rich cream sauce with bacon bits</p>
+                    </div>
+                    <span class="item-price">$13.99</span>
+                    <button class="add-btn">+</button>
+                </div>
+                <div class="menu-item" data-item="sushi">
+                    <span class="item-emoji">🍣</span>
+                    <div class="item-details">
+                        <p class="item-name" data-translate="sushi">Premium Sushi Platter</p>
+                        <p class="item-description" data-translate="sushiDesc">Fresh assorted sushi selection</p>
+                    </div>
+                    <span class="item-price">$24.99</span>
+                    <button class="add-btn">+</button>
+                </div>
+                <div class="menu-item" data-item="salad">
+                    <span class="item-emoji">🥗</span>
+                    <div class="item-details">
+                        <p class="item-name" data-translate="salad">Garden Fresh Salad</p>
+                        <p class="item-description" data-translate="saladDesc">Mixed greens with house dressing</p>
+                    </div>
+                    <span class="item-price">$9.99</span>
+                    <button class="add-btn">+</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Drinks Menu -->
+        <section class="menu-section" id="drinksSection">
+            <div class="section-header">
+                <span class="icon">🥤</span>
+                <h2 data-translate="drinks">Beverages</h2>
+            </div>
+            <div class="menu-items">
+                <div class="menu-item" data-item="soda">
+                    <span class="item-emoji">🥤</span>
+                    <div class="item-details">
+                        <p class="item-name" data-translate="soda">Refreshing Soda</p>
+                        <p class="item-description" data-translate="sodaDesc">Ice-cold carbonated drink</p>
+                    </div>
+                    <span class="item-price">$3.99</span>
+                    <button class="add-btn">+</button>
+                </div>
+                <div class="menu-item" data-item="coffee">
+                    <span class="item-emoji">☕</span>
+                    <div class="item-details">
+                        <p class="item-name" data-translate="coffee">Premium Coffee</p>
+                        <p class="item-description" data-translate="coffeeDesc">Freshly brewed arabica</p>
+                    </div>
+                    <span class="item-price">$4.99</span>
+                    <button class="add-btn">+</button>
+                </div>
+                <div class="menu-item" data-item="juice">
+                    <span class="item-emoji">🧃</span>
+                    <div class="item-details">
+                        <p class="item-name" data-translate="juice">Fresh Fruit Juice</p>
+                        <p class="item-description" data-translate="juiceDesc">100% natural fruit juice</p>
+                    </div>
+                    <span class="item-price">$5.99</span>
+                    <button class="add-btn">+</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Desserts Menu -->
+        <section class="menu-section" id="dessertsSection">
+            <div class="section-header">
+                <span class="icon">🍰</span>
+                <h2 data-translate="desserts">Desserts</h2>
+            </div>
+            <div class="menu-items">
+                <div class="menu-item" data-item="cake">
+                    <span class="item-emoji">🍰</span>
+                    <div class="item-details">
+                        <p class="item-name" data-translate="cake">Chocolate Layer Cake</p>
+                        <p class="item-description" data-translate="cakeDesc">Rich chocolate with cream frosting</p>
+                    </div>
+                    <span class="item-price">$7.99</span>
+                    <button class="add-btn">+</button>
+                </div>
+                <div class="menu-item" data-item="icecream">
+                    <span class="item-emoji">🍨</span>
+                    <div class="item-details">
+                        <p class="item-name" data-translate="icecream">Artisan Ice Cream</p>
+                        <p class="item-description" data-translate="icecreamDesc">Three scoops of your choice</p>
+                    </div>
+                    <span class="item-price">$6.99</span>
+                    <button class="add-btn">+</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Order Summary -->
+        <div class="order-summary">
+            <div class="order-info">
+                <span class="order-count" id="orderCount">0</span>
+                <div>
+                    <p style="font-weight: 600;" data-translate="yourOrder">Your Order</p>
+                    <p style="color: var(--text-secondary); font-size: 14px;" id="orderTotal">$0.00</p>
+                </div>
+            </div>
+            <button class="order-btn" data-translate="placeOrder">Place Order</button>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Translations
+        const translations = {
+            en: {
+                restaurantName: "Sakura Bistro",
+                tagline: "Smart Dining Experience",
+                detectedLanguage: "Detected Language",
+                speakNow: "Tap to speak in your language",
+                voiceHint: 'Try: "Show drinks" or "Order chicken"',
+                listening: "Waiting for speech...",
+                mainDishes: "Main Dishes",
+                drinks: "Beverages",
+                desserts: "Desserts",
+                friedChicken: "Crispy Fried Chicken",
+                friedChickenDesc: "Golden crispy chicken with special herbs",
+                burger: "Classic Beef Burger",
+                burgerDesc: "Juicy beef patty with fresh vegetables",
+                pasta: "Creamy Carbonara Pasta",
+                pastaDesc: "Rich cream sauce with bacon bits",
+                sushi: "Premium Sushi Platter",
+                sushiDesc: "Fresh assorted sushi selection",
+                salad: "Garden Fresh Salad",
+                saladDesc: "Mixed greens with house dressing",
+                soda: "Refreshing Soda",
+                sodaDesc: "Ice-cold carbonated drink",
+                coffee: "Premium Coffee",
+                coffeeDesc: "Freshly brewed arabica",
+                juice: "Fresh Fruit Juice",
+                juiceDesc: "100% natural fruit juice",
+                cake: "Chocolate Layer Cake",
+                cakeDesc: "Rich chocolate with cream frosting",
+                icecream: "Artisan Ice Cream",
+                icecreamDesc: "Three scoops of your choice",
+                yourOrder: "Your Order",
+                placeOrder: "Place Order",
+                languageName: "English",
+                addedToOrder: "Added to order!",
+                showingDrinks: "Showing drinks menu",
+                showingFood: "Showing food menu",
+                showingDesserts: "Showing desserts menu",
+                orderPlaced: "Order placed successfully!"
+            },
+            fil: {
+                restaurantName: "Sakura Bistro",
+                tagline: "Matalinong Karanasan sa Kainan",
+                detectedLanguage: "Natuklasang Wika",
+                speakNow: "I-tap upang magsalita sa iyong wika",
+                voiceHint: 'Subukan: "Ipakita ang inumin" o "Mag-order ng manok"',
+                listening: "Naghihintay ng pagsasalita...",
+                mainDishes: "Pangunahing Putahe",
+                drinks: "Mga Inumin",
+                desserts: "Panghimagas",
+                friedChicken: "Pritong Manok na Malutong",
+                friedChickenDesc: "Ginintuang malutong na manok na may espesyal na herbs",
+                burger: "Klasikong Beef Burger",
+                burgerDesc: "Masarap na beef patty na may sariwang gulay",
+                pasta: "Creamy Carbonara Pasta",
+                pastaDesc: "Mayamang cream sauce na may bacon",
+                sushi: "Premium Sushi Platter",
+                sushiDesc: "Sariwang iba't ibang sushi",
+                salad: "Sariwang Salad mula sa Hardin",
+                saladDesc: "Halong mga dahon na may house dressing",
+                soda: "Nakakapagpalamig na Soda",
+                sodaDesc: "Malamig na carbonated na inumin",
+                coffee: "Premium na Kape",
+                coffeeDesc: "Sariwang giniling na arabica",
+                juice: "Sariwang Fruit Juice",
+                juiceDesc: "100% natural na fruit juice",
+                cake: "Chocolate Layer Cake",
+                cakeDesc: "Mayamang tsokolate na may cream frosting",
+                icecream: "Artisan na Ice Cream",
+                icecreamDesc: "Tatlong scoop ng iyong pinili",
+                yourOrder: "Iyong Order",
+                placeOrder: "Mag-order",
+                languageName: "Filipino",
+                addedToOrder: "Naidagdag sa order!",
+                showingDrinks: "Ipinapakita ang menu ng inumin",
+                showingFood: "Ipinapakita ang menu ng pagkain",
+                showingDesserts: "Ipinapakita ang menu ng panghimagas",
+                orderPlaced: "Matagumpay na nai-order!"
+            },
+            ja: {
+                restaurantName: "さくらビストロ",
+                tagline: "スマートダイニング体験",
+                detectedLanguage: "検出された言語",
+                speakNow: "タップしてお話しください",
+                voiceHint: '例: 「飲み物を見せて」や「チキンを注文」',
+                listening: "音声を待っています...",
+                mainDishes: "メインディッシュ",
+                drinks: "ドリンク",
+                desserts: "デザート",
+                friedChicken: "クリスピーフライドチキン",
+                friedChickenDesc: "特製ハーブの黄金カリカリチキン",
+                burger: "クラシックビーフバーガー",
+                burgerDesc: "新鮮な野菜とジューシーなビーフパティ",
+                pasta: "クリーミーカルボナーラパスタ",
+                pastaDesc: "ベーコンとリッチなクリームソース",
+                sushi: "プレミアム寿司盛り合わせ",
+                sushiDesc: "新鮮な寿司の盛り合わせ",
+                salad: "フレッシュガーデンサラダ",
+                saladDesc: "ハウスドレッシングのミックスグリーン",
+                soda: "リフレッシングソーダ",
+                sodaDesc: "冷たい炭酸飲料",
+                coffee: "プレミアムコーヒー",
+                coffeeDesc: "淹れたてのアラビカ",
+                juice: "フレッシュフルーツジュース",
+                juiceDesc: "100%天然フルーツジュース",
+                cake: "チョコレートレイヤーケーキ",
+                cakeDesc: "クリームフロスティングのリッチチョコ",
+                icecream: "アルチザンアイスクリーム",
+                icecreamDesc: "お好みの3スクープ",
+                yourOrder: "ご注文",
+                placeOrder: "注文する",
+                languageName: "日本語",
+                addedToOrder: "注文に追加しました！",
+                showingDrinks: "ドリンクメニューを表示",
+                showingFood: "フードメニューを表示",
+                showingDesserts: "デザートメニューを表示",
+                orderPlaced: "注文が完了しました！"
+            }
+        };
+
+        const flags = {
+            en: "🇺🇸",
+            fil: "🇵🇭",
+            ja: "🇯🇵"
+        };
+
+        let currentLanguage = 'en';
+        let orderItems = [];
+        let recognition = null;
+        let isListening = false;
+
+        // Initialize Speech Recognition
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = true;
+
+                recognition.onstart = () => {
+                    isListening = true;
+                    document.getElementById('micButton').classList.add('listening');
+                    document.getElementById('transcript').textContent = '🎤 Listening...';
+                };
+
+                recognition.onend = () => {
+                    isListening = false;
+                    document.getElementById('micButton').classList.remove('listening');
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = Array.from(event.results)
+                        .map(result => result[0].transcript)
+                        .join('');
+                    
+                    document.getElementById('transcript').textContent = transcript;
+
+                    if (event.results[0].isFinal) {
+                        detectLanguageAndProcess(transcript);
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    document.getElementById('transcript').textContent = 'Error: ' + event.error;
+                    isListening = false;
+                    document.getElementById('micButton').classList.remove('listening');
+                };
+            } else {
+                document.getElementById('transcript').textContent = 'Speech recognition not supported';
+                document.getElementById('micButton').disabled = true;
+            }
+        }
+
+        // Detect language from text
+        function detectLanguageAndProcess(text) {
+            const lowerText = text.toLowerCase();
+            
+            // Japanese detection (contains Japanese characters)
+            const japaneseRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/;
+            if (japaneseRegex.test(text)) {
+                switchLanguage('ja');
+                processVoiceCommand(text, 'ja');
+                return;
+            }
+
+            // Filipino detection (common Filipino words)
+            const filipinoWords = ['ang', 'ng', 'mga', 'sa', 'na', 'ay', 'ko', 'mo', 'po', 'oo', 'hindi', 'pakita', 'ipakita', 'order', 'manok', 'inumin', 'pagkain', 'panghimagas', 'gusto'];
+            const words = lowerText.split(/\s+/);
+            const filipinoCount = words.filter(word => filipinoWords.includes(word)).length;
+            
+            if (filipinoCount >= 1 || lowerText.includes('pakita') || lowerText.includes('ipakita')) {
+                switchLanguage('fil');
+                processVoiceCommand(text, 'fil');
+                return;
+            }
+
+            // Default to English
+            switchLanguage('en');
+            processVoiceCommand(text, 'en');
+        }
+
+        // Process voice commands
+        function processVoiceCommand(text, lang) {
+            const lowerText = text.toLowerCase();
+
+            // Command patterns for each language
+            const commands = {
+                en: {
+                    drinks: ['show drinks', 'drinks', 'beverages', 'show beverages'],
+                    food: ['show food', 'food', 'main dishes', 'show menu'],
+                    desserts: ['show desserts', 'desserts', 'sweets'],
+                    chicken: ['order chicken', 'chicken', 'fried chicken'],
+                    burger: ['order burger', 'burger'],
+                    pasta: ['order pasta', 'pasta', 'carbonara'],
+                    sushi: ['order sushi', 'sushi'],
+                    salad: ['order salad', 'salad'],
+                    soda: ['order soda', 'soda'],
+                    coffee: ['order coffee', 'coffee'],
+                    juice: ['order juice', 'juice'],
+                    cake: ['order cake', 'cake', 'chocolate cake'],
+                    icecream: ['order ice cream', 'ice cream', 'icecream']
+                },
+                fil: {
+                    drinks: ['ipakita inumin', 'inumin', 'mga inumin', 'pakita inumin'],
+                    food: ['ipakita pagkain', 'pagkain', 'pakita pagkain'],
+                    desserts: ['ipakita panghimagas', 'panghimagas', 'pakita panghimagas'],
+                    chicken: ['order manok', 'manok', 'pritong manok'],
+                    burger: ['order burger', 'burger'],
+                    pasta: ['order pasta', 'pasta'],
+                    sushi: ['order sushi', 'sushi'],
+                    salad: ['order salad', 'salad'],
+                    soda: ['order soda', 'soda'],
+                    coffee: ['order kape', 'kape'],
+                    juice: ['order juice', 'juice'],
+                    cake: ['order cake', 'cake', 'keyk'],
+                    icecream: ['order ice cream', 'ice cream', 'sorbetes']
+                },
+                ja: {
+                    drinks: ['飲み物', 'ドリンク', '飲み物を見せて'],
+                    food: ['食べ物', 'フード', 'メイン', '料理'],
+                    desserts: ['デザート', 'スイーツ', '甘いもの'],
+                    chicken: ['チキン', '鳥', 'フライドチキン'],
+                    burger: ['バーガー', 'ハンバーガー'],
+                    pasta: ['パスタ', 'カルボナーラ'],
+                    sushi: ['寿司', 'すし'],
+                    salad: ['サラダ'],
+                    soda: ['ソーダ', '炭酸'],
+                    coffee: ['コーヒー', '珈琲'],
+                    juice: ['ジュース'],
+                    cake: ['ケーキ', 'チョコケーキ'],
+                    icecream: ['アイス', 'アイスクリーム']
+                }
+            };
+
+            const langCommands = commands[lang] || commands.en;
+
+            // Check for section commands
+            if (langCommands.drinks.some(cmd => lowerText.includes(cmd))) {
+                scrollToSection('drinksSection');
+                showToast(translations[currentLanguage].showingDrinks);
+                return;
+            }
+            if (langCommands.food.some(cmd => lowerText.includes(cmd))) {
+                scrollToSection('foodSection');
+                showToast(translations[currentLanguage].showingFood);
+                return;
+            }
+            if (langCommands.desserts.some(cmd => lowerText.includes(cmd))) {
+                scrollToSection('dessertsSection');
+                showToast(translations[currentLanguage].showingDesserts);
+                return;
+            }
+
+            // Check for item commands
+            const itemMap = {
+                chicken: { price: 12.99, element: 'chicken' },
+                burger: { price: 14.99, element: 'burger' },
+                pasta: { price: 13.99, element: 'pasta' },
+                sushi: { price: 24.99, element: 'sushi' },
+                salad: { price: 9.99, element: 'salad' },
+                soda: { price: 3.99, element: 'soda' },
+                coffee: { price: 4.99, element: 'coffee' },
+                juice: { price: 5.99, element: 'juice' },
+                cake: { price: 7.99, element: 'cake' },
+                icecream: { price: 6.99, element: 'icecream' }
+            };
+
+            for (const [item, data] of Object.entries(itemMap)) {
+                if (langCommands[item] && langCommands[item].some(cmd => lowerText.includes(cmd))) {
+                    addToOrder(data.price);
+                    highlightItem(data.element);
+                    return;
+                }
+            }
+        }
+
+        // Switch language
+        function switchLanguage(lang) {
+            if (currentLanguage === lang) return;
+
+            currentLanguage = lang;
+
+            // Update flag and language name
+            document.getElementById('currentFlag').textContent = flags[lang];
+            document.getElementById('languageName').textContent = translations[lang].languageName;
+
+            // Update active button
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+
+            // Animate text changes
+            const elements = document.querySelectorAll('[data-translate]');
+            elements.forEach(el => {
+                el.classList.add('fade-out');
+            });
+
+            setTimeout(() => {
+                elements.forEach(el => {
+                    const key = el.dataset.translate;
+                    if (translations[lang][key]) {
+                        el.textContent = translations[lang][key];
+                    }
+                    el.classList.remove('fade-out');
+                    el.classList.add('fade-in');
+                });
+            }, 150);
+        }
+
+        // Scroll to section
+        function scrollToSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        // Highlight item
+        function highlightItem(itemName) {
+            // Remove existing highlights
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('highlighted');
+            });
+
+            // Add highlight to matched item
+            const item = document.querySelector(`[data-item="${itemName}"]`);
+            if (item) {
+                item.classList.add('highlighted');
+                item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // Remove highlight after 3 seconds
+                setTimeout(() => {
+                    item.classList.remove('highlighted');
+                }, 3000);
+            }
+        }
+
+        // Add to order
+        function addToOrder(price) {
+            orderItems.push(price);
+            updateOrderSummary();
+            showToast(translations[currentLanguage].addedToOrder);
+        }
+
+        // Update order summary
+        function updateOrderSummary() {
+            const count = orderItems.length;
+            const total = orderItems.reduce((sum, price) => sum + price, 0);
+            
+            document.getElementById('orderCount').textContent = count;
+            document.getElementById('orderTotal').textContent = `$${total.toFixed(2)}`;
+        }
+
+        // Show toast notification
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        // Event Listeners
+        document.getElementById('micButton').addEventListener('click', () => {
+            if (recognition) {
+                if (isListening) {
+                    recognition.stop();
+                } else {
+                    recognition.start();
+                }
+            }
+        });
+
+        // Language selector buttons
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                switchLanguage(btn.dataset.lang);
+            });
+        });
+
+        // Add buttons
+        document.querySelectorAll('.add-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const menuItem = btn.closest('.menu-item');
+                const priceText = menuItem.querySelector('.item-price').textContent;
+                const price = parseFloat(priceText.replace('$', ''));
+                addToOrder(price);
+                
+                // Brief highlight effect
+                menuItem.classList.add('highlighted');
+                setTimeout(() => menuItem.classList.remove('highlighted'), 500);
+            });
+        });
+
+        // Place order button
+        document.querySelector('.order-btn').addEventListener('click', () => {
+            if (orderItems.length > 0) {
+                showToast(translations[currentLanguage].orderPlaced);
+                orderItems = [];
+                updateOrderSummary();
+            }
+        });
+
+        // Initialize
+        initSpeechRecognition();
+    </script>
+</body>
+</html>
